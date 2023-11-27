@@ -1,13 +1,21 @@
 // MM
 
+#ifdef AT89C52
+#include <reg52.h>
+sbit P30 = P3^0;
+sbit P31 = P3^1;
+sbit P32 = P3^2;
+sbit P33 = P3^3;
+sbit P34 = P3^4;
+sbit P35 = P3^5;
+sbit P36 = P3^6;
+sbit P37 = P3^7;
+#else
 #include <STC15F2K60S2.H>
+#endif
 
 unsigned char xdata *ssd_data = 0xE000;
 unsigned char xdata *ssd_com  = 0xC000;
-
-const unsigned char code column_codes_l6[] = { 0x2F, 0x1F, 0x0F };
-const unsigned char code column_codes_h2[] = { 0x08, 0x02, 0x00 };
-const unsigned char code scancodes_l4[] = { 0x07, 0x0B, 0x0D, 0x0E };
 
 const unsigned char code ssd_digits[] = {
     0xC0, 0xF9, 0xA4, 0xB0, 0x99,
@@ -26,115 +34,7 @@ void delay(unsigned char time)
     }
 }
 
-unsigned char get_key(void)
-{
-    static unsigned char key_state = 0;
-    unsigned char key_value = 0xFF;
-    
-    switch (key_state) {
-    case 0:
-        P3 = 0x0F;
-        P42 = 0;
-        P44 = 0;
-        if (P3 != 0x0F) {
-            key_state = 1;
-        }
-        break;
-    case 1:
-        P3 = 0x0F;
-        P42 = 0;
-        P44 = 0;
-        if (P3 != 0x0F) {
-            if (P30 == 0) {
-                // Row 1
-                P3 = 0xF0;
-                P42 = 1;
-                P44 = 1;
-                
-                if (P44 == 0) {
-                    key_value = 0;
-                    key_state = 2;
-                } else if (P42 == 0) {
-                    key_value = 1;
-                    key_state = 2;
-                } else if (P35 == 0) {
-                    key_value = 2;
-                    key_state = 2;
-                } else if (P34 == 0) {
-                    key_value = 3;
-                    key_state = 2;
-                }
-            } else if (P31 == 0) {
-                // Row 2
-                P3 = 0xF0;
-                P42 = 1;
-                P44 = 1;
-                
-                if (P44 == 0) {
-                    key_value = 4;
-                    key_state = 2;
-                } else if (P42 == 0) {
-                    key_value = 5;
-                    key_state = 2;
-                } else if (P35 == 0) {
-                    key_value = 6;
-                    key_state = 2;
-                } else if (P34 == 0) {
-                    key_value = 7;
-                    key_state = 2;
-                }
-            } else if (P32 == 0) {
-                // Row 3
-                P3 = 0xF0;
-                P42 = 1;
-                P44 = 1;
-                
-                if (P44 == 0) {
-                    key_value = 8;
-                    key_state = 2;
-                } else if (P42 == 0) {
-                    key_value = 9;
-                    key_state = 2;
-                } else if (P35 == 0) {
-                    key_value = 10;
-                    key_state = 2;
-                } else if (P34 == 0) {
-                    key_value = 11;
-                    key_state = 2;
-                }
-            } else if (P33 == 0) {
-                // Row 4
-                P3 = 0xF0;
-                P42 = 1;
-                P44 = 1;
-                
-                if (P44 == 0) {
-                    key_value = 12;
-                    key_state = 2;
-                } else if (P42 == 0) {
-                    key_value = 13;
-                    key_state = 2;
-                } else if (P35 == 0) {
-                    key_value = 14;
-                    key_state = 2;
-                } else if (P34 == 0) {
-                    key_value = 15;
-                    key_state = 2;
-                }
-            }
-        }
-        break;
-    case 2:
-        P3 = 0x0F;
-        P42 = 0;
-        P44 = 0;
-        if (P3 == 0x0F)
-            key_state = 0;
-    }
-    
-    return key_value;
-}
-
+#if 0
 void read_keyboard(void)
 {
     static unsigned char hang;
@@ -195,9 +95,89 @@ void read_keyboard(void)
 			key_state=0;	
 		}break;
 						
-    } 
-	
+    }
 }
+#endif
+
+#ifdef AT89C52
+#define RESET_KEYPAD() (P3 = 0x0F)
+#else
+#define RESET_KEYPAD() \
+    do { \
+        P3 = 0x0F; \
+        P42 = 0; \
+        P44 = 0; \
+    } while(0)
+#endif
+
+void read_keypad(void)
+{
+    static unsigned char key_state = 0;
+    static unsigned char row;
+    switch (key_state) {
+        case 0:
+        /* Initial state. No key has been pressed. */
+        RESET_KEYPAD();
+        if (P3 != 0x0F)
+            /* A key has been pressed. */
+            key_state = 1;
+        break;
+        
+        case 1:
+        /* Detect the key pressed. */
+        RESET_KEYPAD();
+        if (P3 != 0x0F) {
+            if (!P30)
+                row = 0;
+            if (!P31)
+                row = 1;
+            if (!P32)
+                row = 2;
+            if (!P33)
+                row = 3;
+            
+            P3 = 0xF0;
+            #ifndef AT89C52
+            P42 = 1;
+            P44 = 1;
+            #endif
+            
+            #ifdef AT89C52
+            if (!P37) {
+                key_value = row * 4;
+                key_state = 2;
+            } else if (!P36) {
+                key_value = row * 4 + 1;
+                key_state = 2;
+            }
+            #else
+            if (!P44) {
+                key_value = row * 4;
+                key_state = 2;
+            } else if (!P42) {
+                key_value = row * 4 + 1;
+                key_state = 2;
+            }
+            #endif
+            else if (!P35) {
+                key_value = row * 4 + 2;
+                key_state = 2;
+            } else if (!P34) {
+                key_value = row * 4 + 3;
+                key_state = 2;
+            }
+        } else
+            key_state = 0;
+        break;
+        
+        case 2:
+        /* A key has been released. */
+        RESET_KEYPAD();
+        if (P3 == 0x0F)
+            key_state = 0;
+    }
+}
+            
 
 void main(void)
 {   
@@ -205,7 +185,7 @@ void main(void)
     
     *ssd_com = 0;
     for (;;) {
-        read_keyboard();
+        read_keypad();
         
         *ssd_data = 0;
         *ssd_com = 1 << ssd_no;
