@@ -26,7 +26,7 @@ const unsigned char code ssd_digits[] = {
 
 unsigned char key_value = 0xFF;
 
-void read_keyboard(void)
+void read_keyboard(void) interrupt 0
 {
     static unsigned char hang;
 	static unsigned char key_state=0;	
@@ -95,8 +95,11 @@ void main(void)
     
     XBYTE[0xA000] = 0;
     
+    IT0 = 0;
+    EX0 = 1;
+    EA = 1;
+    
     for (;;) {
-        read_keyboard();
         if (key_value != 0xFF) {
         *ssd_data = 0xFF;
         *ssd_com = 0xFF;
